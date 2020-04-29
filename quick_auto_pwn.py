@@ -295,6 +295,7 @@ def getuser():
 how to use:
     add quick.htb in your /etc/host with 10.10.10.186
     add printerv2.quick.htb /etc/host with 127.0.0.1 
+    if you get connection problem with printerv2.quick.htb run tunnel.sh manully on diffrent terminal
     And run it as root
     copy your id_rsa file and id_rsa.pub file in same folder
     and run three python sever 
